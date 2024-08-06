@@ -27,20 +27,22 @@ def login():
                 "WHERE email = %s AND contraseña = %s",
                 (gmail, password,)
             )
-            mydb.commit()
 
             result = mycursor.fetchone()
-            if result == None:
+            if result is None:
                 print("Something is Incorrect, Try Again")
+                return None
             else:
                 user_id = result[0]
                 print(user_id)
                 return user_id
         except Error as e:
             print(f"Error executing query: {e}")
+            return None
 
     except Error as e:
         print(f"Error executing query: {e}")
+        return None
 
 def sign_up():
     mydb = mysql.connector.connect(
@@ -100,10 +102,10 @@ def program(user_id):
                         "FROM programas "
                         "WHERE nombre_programa = %s", (nombre_programa,)
                     )
-                    result_id = mycursor.fetchone()
+                    program_id = mycursor.fetchone()
                     print("stage 1")
 
-                    if result_id is None:
+                    if program_id is None:
                         query_insertar = ("INSERT INTO programas (nombre_programa) "
                                           "VALUES(%s)")
                         mycursor.execute(query_insertar, (nombre_programa,))
@@ -115,39 +117,72 @@ def program(user_id):
                             "FROM programas "
                             "WHERE nombre_programa = %s", (nombre_programa,)
                         )
-                        result_id = mycursor.fetchone()
+                        program_id = mycursor.fetchone()
+
+                    mycursor.execute(
+                        "SELECT ID_usuario_programa "
+                        "FROM usuario_programa "
+                        "WHERE ID_usuario = %s AND ID_programa = %s",
+                        (user_id, program_id[0])
+                    )
+                    result_ID_usuario_programa = mycursor.fetchone()
+                    print("stage 3")
+
+                    if result_ID_usuario_programa is None:
+                        query_insertar1 = ("INSERT INTO usuario_programa (ID_usuario,ID_programa) "
+                                           "VALUES(%s,%s)")
+                        mycursor.execute(query_insertar1, (user_id, program_id[0],))
+                        mydb.commit()
+                        print("stage 4")
 
                         mycursor.execute(
                             "SELECT ID_usuario_programa "
                             "FROM usuario_programa "
                             "WHERE ID_usuario = %s AND ID_programa = %s",
-                            (user_id, result_id[0])
+                            (user_id, program_id[0])
                         )
                         result_ID_usuario_programa = mycursor.fetchone()
-                        print("stage 3")
 
-                        if result_ID_usuario_programa is None:
-                            query_insertar1 = ("INSERT INTO usuario_programa (ID_usuario,ID_programa) "
-                                               "VALUES(%s,%s)")
-                            mycursor.execute(query_insertar1, (user_id, result_id[0],))
-                            mydb.commit()
-                            print("stage 4")
 
-                        checkpoint = time.time()
-                        diferencia = (checkpoint - tiempo_partida)
+                    checkpoint = time.time()
+                    diferencia = (checkpoint - tiempo_partida)
 
-                        suma += diferencia
+                    suma += diferencia
+                    solo_fecha = datetime.now().date()
 
+                    mycursor.execute(
+                        "SELECT tiempo_utilizado "
+                        "FROM tiempo_utilizado "
+                        "WHERE ID_usuario_programa = %s AND solo_fecha = %s",
+                        (result_ID_usuario_programa[0], solo_fecha)
+                    )
+                    tiempo_utilizado_existente = mycursor.fetchone()
+                    print("stage 5")
+
+                    if tiempo_utilizado_existente:
+                        tiempo_nuevo = tiempo_utilizado_existente[0] + suma
                         mycursor.execute(
                             "UPDATE tiempo_utilizado "
                             "SET tiempo_utilizado = %s "
-                            "WHERE ID_usuario_programa = %s and solo_fecha = %s",
-                            (result_ID_usuario_programa, )
+                            "WHERE ID_usuario_programa = %s AND solo_fecha = %s",
+                            (tiempo_nuevo, result_ID_usuario_programa[0], solo_fecha)
                         )
+                        mydb.commit()
+                        print(f"Updated tiempo_utilizado: {tiempo_nuevo}")
+                        print("stage 6")
+                        suma = 0
 
+                    else:
+                        solo_hora = datetime.now().time()
+                        mycursor.execute(
+                            "INSERT INTO tiempo_utilizado (ID_usuario_programa, tiempo_utilizado, solo_hora, solo_fecha)"
+                            "VALUES (%s,%s,%s,%s) ",
+                            (result_ID_usuario_programa[0], suma, solo_hora, solo_fecha)
+                        )
+                        mydb.commit()
 
-#ERMMM WHAT THE SIGMA
-
+                        print("Registro de tiempo utilizado actualizado")
+                        suma = 0
 
 
 
@@ -156,10 +191,16 @@ def program(user_id):
                     print(f"Ocurrió un error: {e}")
 
 while True:
-    log_or_sign = int(input("1 Log In 2 Sign Up 3 Exit"))
-    if log_or_sign == 1:
-        login()
-    if log_or_sign == 2:
+    log_or_sign = input("1 Log In 2 Sign Up 3 Exit")
+    if log_or_sign == "1":
+        user_id = login()
+        if user_id:
+            program(user_id=user_id)
+    elif log_or_sign == "2":
         sign_up()
-    if log_or_sign == 3:
+        program()
+    elif log_or_sign == "3":
+        print("Gotta go, have fun!")
         break
+    else:
+        print("Invalid option,please try again!")
