@@ -146,7 +146,7 @@ def program(user_id):
                         )
 
 
-
+#ERMMM WHAT THE SIGMA
 
 
 
