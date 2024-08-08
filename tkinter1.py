@@ -1,6 +1,6 @@
 import customtkinter
 from tkinter import *
-from tkinter.ttk import Treeview, Style, Separator
+from tkinter.ttk import Treeview, Style
 from PIL import Image, ImageTk
 import mysql.connector
 from mysql.connector import Error
@@ -115,6 +115,8 @@ class App:
             if time_used_minutes > 0:
                 self.tree.insert("", "end", values=(new_program_name.capitalize(), time_used_minutes, date))
                 total_time_used += time_used_minutes
+            else:
+                self.tree.insert("", "end", values=(new_program_name.capitalize(), "<0", date))
 
         self.tree.insert("", "end", values=("Total Time", total_time_used,""))
 
