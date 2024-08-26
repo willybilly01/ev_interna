@@ -1,10 +1,10 @@
+import tkinter
 import customtkinter
 from tkinter import *
 from tkinter.ttk import Treeview, Style
 from PIL import Image, ImageTk
 import mysql.connector
 import threading
-
 from CTkMessagebox import CTkMessagebox
 from win32gui import GetWindowText, GetForegroundWindow
 import win32process
@@ -75,7 +75,7 @@ class Monitoreo_programa:
                     mycursor.execute(query, (user_id, nombre_programa))
                     result = mycursor.fetchone()
 
-                    if result[0] == 1:
+                    if result and result[0] == 1:
                         msg1 = CTkMessagebox(message="This program has been blocked.",
                                              option_1="Ok",
                                              button_width=375)
@@ -104,22 +104,7 @@ class Monitoreo_programa:
                         )
                         program_id = mycursor.fetchone()
 
-                    mycursor.execute(
-                        "SELECT ID_usuario_programa "
-                        "FROM usuario_programa "
-                        "WHERE ID_usuario = %s AND ID_programa = %s",
-                        (user_id, program_id[0])
-                    )
-                    result_ID_usuario_programa = mycursor.fetchone()
-                    print("stage 3")
-
-                    if result_ID_usuario_programa is None:
-                        query_insertar1 = ("INSERT INTO usuario_programa (ID_usuario,ID_programa) "
-                                           "VALUES(%s,%s)")
-                        mycursor.execute(query_insertar1, (user_id, program_id[0],))
-                        self.db.commit()
-                        print("stage 4")
-
+                    if program_id is not None:
                         mycursor.execute(
                             "SELECT ID_usuario_programa "
                             "FROM usuario_programa "
@@ -127,49 +112,63 @@ class Monitoreo_programa:
                             (user_id, program_id[0])
                         )
                         result_ID_usuario_programa = mycursor.fetchone()
+                        print("stage 3")
 
-                    checkpoint = time.time()
-                    diferencia = (checkpoint - tiempo_partida)
+                        if result_ID_usuario_programa is None:
+                            query_insertar1 = ("INSERT INTO usuario_programa (ID_usuario,ID_programa) "
+                                           "VALUES(%s,%s)")
+                            mycursor.execute(query_insertar1, (user_id, program_id[0],))
+                            self.db.commit()
+                            print("stage 4")
 
-                    suma += diferencia
-                    solo_fecha = datetime.now().date()
+                            mycursor.execute(
+                            "SELECT ID_usuario_programa "
+                            "FROM usuario_programa "
+                            "WHERE ID_usuario = %s AND ID_programa = %s",
+                            (user_id, program_id[0])
+                            )
+                            result_ID_usuario_programa = mycursor.fetchone()
 
-                    mycursor.execute(
-                        "SELECT tiempo_utilizado "
-                        "FROM tiempo_utilizado "
-                        "WHERE ID_usuario_programa = %s AND solo_fecha = %s",
-                        (result_ID_usuario_programa[0], solo_fecha)
-                    )
-                    tiempo_utilizado_existente = mycursor.fetchone()
-                    print("stage 5")
+                        if result_ID_usuario_programa is not None:
+                            checkpoint = time.time()
+                            diferencia = (checkpoint - tiempo_partida)
 
-                    if tiempo_utilizado_existente:
-                        tiempo_nuevo = tiempo_utilizado_existente[0] + suma
-                        mycursor.execute(
-                            "UPDATE tiempo_utilizado "
-                            "SET tiempo_utilizado = %s "
+                            suma += diferencia
+                            solo_fecha = datetime.now().date()
+
+                            mycursor.execute(
+                            "SELECT tiempo_utilizado "
+                            "FROM tiempo_utilizado "
                             "WHERE ID_usuario_programa = %s AND solo_fecha = %s",
+                    (result_ID_usuario_programa[0], solo_fecha)
+                            )
+                            tiempo_utilizado_existente = mycursor.fetchone()
+                            print("stage 5")
+
+                            if tiempo_utilizado_existente:
+                                tiempo_nuevo = tiempo_utilizado_existente[0] + suma
+                                mycursor.execute(
+                            "UPDATE tiempo_utilizado "
+                                    "SET tiempo_utilizado = %s "
+                                    "WHERE ID_usuario_programa = %s AND solo_fecha = %s",
                             (tiempo_nuevo, result_ID_usuario_programa[0], solo_fecha)
-                        )
-                        self.db.commit()
-                        print(f"Updated tiempo_utilizado: {tiempo_nuevo}")
-                        print("stage 6")
-                        suma = 0
+                                    )
+                                self.db.commit()
+                                print(f"Updated tiempo_utilizado: {tiempo_nuevo}")
+                                print("stage 6")
+                                suma = 0
 
-                    else:
-                        solo_hora = datetime.now().time()
-                        mycursor.execute(
-                            "INSERT INTO tiempo_utilizado (ID_usuario_programa, tiempo_utilizado, solo_hora, solo_fecha)"
-                            "VALUES (%s,%s,%s,%s) ",
-                            (result_ID_usuario_programa[0], suma, solo_hora, solo_fecha)
-                        )
-                        self.db.commit()
+                            else:
+                                solo_hora = datetime.now().time()
+                                mycursor.execute(
+                        "INSERT INTO tiempo_utilizado (ID_usuario_programa, tiempo_utilizado, solo_hora, solo_fecha)"
+                                "VALUES (%s,%s,%s,%s) ",
+                        (result_ID_usuario_programa[0], suma, solo_hora, solo_fecha)
+                    )
+                                self.db.commit()
 
-                        print("Registro de tiempo utilizado actualizado")
-                        suma = 0
-
-
-
+                                print("Registro de tiempo utilizado actualizado")
+                                suma = 0
 
                 except Exception as e:
                     print(f"Ocurrió un error: {e}")
@@ -208,11 +207,10 @@ class Database:
         except Error as e:
             print(f"Error fetching data: {e}")
             return []
-
-class App:
+class Login:
     def __init__(self,root):
         self.root = root
-        self.root.geometry('1200x700')
+        self.root.geometry('400x400')
         self.db = Database(
             "localhost",
             "root",
@@ -220,7 +218,182 @@ class App:
             "ev_interna"
         )
 
-        self.user_id = 1
+
+
+        self.titulo_login = customtkinter.CTkLabel(self.root, text="Login",
+                                                font=('Montserrat Black', 48))
+        self.titulo_login.pack(pady=20)
+
+        entrada_frame = customtkinter.CTkFrame(self.root,fg_color="transparent")
+        entrada_frame.pack(pady=10)
+
+        self.entrada_label = customtkinter.CTkLabel(entrada_frame, text=("Ingrese correo"))
+        self.entrada_label.pack(side= "left",padx=5)
+
+        self.entrada_usuario = customtkinter.CTkEntry(entrada_frame,width=200)
+        self.entrada_usuario.pack(side= "left",padx=5)
+
+        contrasena_frame = customtkinter.CTkFrame(self.root,fg_color="transparent")
+        contrasena_frame.pack(pady=10)
+
+        self.contrasena_label = customtkinter.CTkLabel(contrasena_frame, text=("Ingrese Contraseña"))
+        self.contrasena_label.pack(side= "left",padx=5)
+
+        self.entrada_clave = customtkinter.CTkEntry(contrasena_frame, show="*",width=200)
+        self.entrada_clave.pack(side= "left",padx=5)
+
+        self.boton_login = customtkinter.CTkButton(self.root, text="Login", command=self.funcion_login)
+        self.boton_login.pack(pady = 30)
+
+        self.boton_ir_registro = customtkinter.CTkButton(self.root, text="No tengo cuenta",
+                                                      command=self.ir_registro)
+        self.boton_ir_registro.pack(pady=5)
+
+        self.incorrecto = customtkinter.CTkLabel(self.root, text="", fg_color="transparent", text_color="red")
+        self.incorrecto.pack()
+
+    def funcion_login(self):
+        contrasena = self.entrada_clave.get()
+        correo_usuario= self.entrada_usuario.get()
+
+        mydb = self.db.connect()
+        mycursor = mydb.cursor()
+
+        mycursor.execute("SELECT ID_usuario "
+                         "FROM usuarios "
+                         "WHERE email= %s AND contraseña= %s",
+                         (correo_usuario,contrasena)
+
+        )
+        ID_usuario = mycursor.fetchone()
+
+        if ID_usuario == None:
+            self.incorrecto.configure(text="Campo Ingresado Incorrecto")
+        else:
+            self.incorrecto.configure(text="")
+            print("ID Usuario:", ID_usuario)
+            self.root.withdraw()
+            main_app = App(customtkinter.CTkToplevel(), ID_usuario[0])
+
+
+    def ir_registro(self):
+        for widget in self.root.winfo_children():
+            widget.destroy()
+        pagina_login = Registro(self.root)
+class Registro:
+    def __init__(self, root):
+        self.root = root
+        self.root.geometry('400x600')
+        self.db = Database(
+            "localhost",
+            "root",
+            "8879576",
+            "ev_interna"
+        )
+
+        self.titulo_registro = customtkinter.CTkLabel(self.root, text="Registrarse",
+                                                      font=('Montserrat Black', 48))
+        self.titulo_registro.pack(pady=20)
+
+        entrada_frame = customtkinter.CTkFrame(self.root, fg_color="transparent")
+        entrada_frame.pack(pady=10)
+
+        self.nombre_label = customtkinter.CTkLabel(entrada_frame, text=("Ingrese su nombre"))
+        self.nombre_label.pack(padx=5, fill="x")
+
+        self.nombre_usuario = customtkinter.CTkEntry(entrada_frame, width=200)
+        self.nombre_usuario.pack(padx=5, fill="x")
+
+        self.apellido_label = customtkinter.CTkLabel(entrada_frame, text=("Ingrese su Apellido"))
+        self.apellido_label.pack(padx=5, fill="x")
+
+        self.apellido_usuario = customtkinter.CTkEntry(entrada_frame, width=200)
+        self.apellido_usuario.pack(padx=5, fill="x")
+
+        self.entrada_label = customtkinter.CTkLabel(entrada_frame, text=("Ingrese correo"))
+        self.entrada_label.pack(padx=5, fill="x")
+
+        self.entrada_usuario = customtkinter.CTkEntry(entrada_frame, width=200)
+        self.entrada_usuario.pack(padx=5, fill="x")
+
+        contrasena_frame = customtkinter.CTkFrame(self.root, fg_color="transparent")
+        contrasena_frame.pack(pady=10, fill="x")
+
+        self.contrasena_label = customtkinter.CTkLabel(contrasena_frame, text=("Ingrese Contraseña"))
+        self.contrasena_label.pack(padx=5, fill="x")
+
+        self.entrada_clave = customtkinter.CTkEntry(contrasena_frame, show="*", width=200)
+        self.entrada_clave.pack(padx=5)
+
+        self.contrasena_label1 = customtkinter.CTkLabel(contrasena_frame, text=("Vuelva a introducir la contraseña"))
+        self.contrasena_label1.pack(padx=5, fill="x")
+
+        self.entrada_clave1 = customtkinter.CTkEntry(contrasena_frame, show="*", width=200)
+        self.entrada_clave1.pack(padx=5)
+
+        self.rol_familiar = customtkinter.CTkLabel(contrasena_frame, text=("Rol Familiar"))
+        self.rol_familiar.pack(padx=5)
+
+        self.option_menu = customtkinter.CTkOptionMenu(contrasena_frame, values=["Padre", "Hijo"])
+        self.option_menu.pack(pady=5)
+
+        self.boton_registro = customtkinter.CTkButton(self.root, text="Registrarse", command=self.funcion_registro)
+        self.boton_registro.pack(pady=5)
+
+        self.boton_ir_login = customtkinter.CTkButton(self.root, text="Ya tengo una cuenta",
+                                                      command=self.ir_login)
+        self.boton_ir_login.pack(pady=5)
+
+        self.incorrecto = customtkinter.CTkLabel(self.root, text="", fg_color="transparent", text_color="red")
+        self.incorrecto.pack()
+
+    def funcion_registro(self):
+        if self.entrada_clave == self.entrada_clave1:
+            nombre = self.nombre_usuario.get()
+            apellido = self.apellido_usuario.get()
+            correo_usuario = self.entrada_usuario.get()
+            contrasena = self.entrada_clave.get()
+            rol = self.rol_familiar.get()
+
+            mydb = self.db.connect()
+            mycursor = mydb.cursor()
+
+            mycursor.execute("INSERT INTO usuarios (nombre, apellido, email, contraseña, rol)  "
+                             "VALUES (%s,%s, %s,%s, %s) ",
+                             (nombre, apellido, correo_usuario, contrasena,rol)
+                             )
+            mydb.commit()
+
+            self.incorrecto.configure(text="Registrado con éxito", text_color="green")
+
+            mycursor.execute("SELECT ID_usuario "
+                             "FROM usuarios "
+                             "WHERE email = %s", (correo_usuario,))
+            ID_usuario = mycursor.fetchone()
+
+            if ID_usuario:
+                self.root.withdraw()
+                main_app = App(tkinter.Toplevel(), ID_usuario[0])
+            else:
+                None
+
+        else:
+            self.incorrecto.configure(text="Las contraseñas no coinciden", text_color="green")
+    def ir_login(self):
+        for widget in self.root.winfo_children():
+            widget.destroy()
+        pagina_login = Login(self.root)
+class App:
+    def __init__(self,root, user_id):
+        self.root = root
+        self.user_id = user_id
+        self.root.geometry('1200x700')
+        self.db = Database(
+            "localhost",
+            "root",
+            "8879576",
+            "ev_interna"
+        )
 
         self.monitor = Monitoreo_programa(user_id=self.user_id, blocked_programs=[])
         self.monitor_thread = threading.Thread(target=self.monitor.monitor, daemon=True)
@@ -268,7 +441,6 @@ class App:
         self.configure_page1()
         self.configure_page2()
         self.configure_page3()
-
     def configure_page1(self):
         self.page1text = customtkinter.CTkLabel(master=self.page1_frame, text="Main Menu",
                                                 font=('Montserrat Black', 60))
@@ -287,7 +459,6 @@ class App:
 
         date_button = customtkinter.CTkButton(master=self.right_frame_1, text="Choose Date", command=self.choose_date)
         date_button.pack(ipadx=10, ipady=10, padx=20)
-
     def configure_page2(self):
         self.page2text = customtkinter.CTkLabel(master=self.page2_frame, text="Bloqueo de programa",
                                                 font=('Montserrat Black', 60))
@@ -295,7 +466,8 @@ class App:
 
         self.right_frame_2 = customtkinter.CTkFrame(self.page2_frame, fg_color="transparent")
         self.right_frame_2.pack(side=RIGHT, fill=Y, padx=10, pady=20)
-        self.right_frame_2.configure(width=200, height=300)
+        self.right_frame_2.pack_propagate(False)
+        self.right_frame_2.configure(width=400, height=500)
 
         mydb = self.db.connect()
         mycursor = mydb.cursor()
@@ -314,7 +486,6 @@ class App:
         for program in programs:
             program_name = program[0]
 
-            # Create a checkbox for each program
             check_var = customtkinter.StringVar(value="off")
             self.check_vars[program_name] = check_var
             checkbox = customtkinter.CTkCheckBox(master=scroll_frame,
@@ -327,17 +498,30 @@ class App:
 
         confirm_button = customtkinter.CTkButton(master=self.page2_frame, text="Confirm Program Selection", command=self.confirm_selection, height=50, width=150)
         #confirm_button.pack(padx =20, pady=20, ipadx = 20, ipady = 20)
-        confirm_button.place(x=500, y=200)
+        confirm_button.place(x=100, y=630)
 
         delete_button = customtkinter.CTkButton(master=self.page2_frame, text="Delete Program Blocker", command=self.delete_selection, height=50, width=150)
-        delete_button.place(x=500, y=275)
+        delete_button.place(x=300, y=630)
+
+        mycursor.execute("SELECT programas.nombre_programa "
+                         "FROM programas "
+                         "JOIN usuario_programa ON programas.ID_programa = usuario_programa.ID_programa "
+                         "WHERE usuario_programa.ID_usuario = %s AND usuario_programa.programa_bloqueado = 1",
+                         (self.user_id,))
+        blocked_programs = mycursor.fetchall()
+
+        self.tree2 = Treeview(self.right_frame_2, columns=("blocked_programs"), show='headings')
+        self.tree2.heading("blocked_programs", text="Blocked Programs")
+        self.tree2.pack(side=RIGHT, pady=50, padx=50, fill=BOTH, expand=True)
+
+        for program in blocked_programs:
+            self.tree2.insert("", "end", values=(program[0],))
     def confirm_selection(self):
         selected_programs = []
         for program_name, check_var in self.check_vars.items():
             if check_var.get() == "on":
                 selected_programs.append(program_name)
 
-        # Now `selected_programs` contains the names of the programs that were checked.
         print("Selected Programs:", selected_programs)
         mydb = self.db.connect()
         mycursor = mydb.cursor()
@@ -354,13 +538,26 @@ class App:
 
         mydb.commit()
 
+        mydb = self.db.connect()
+        mycursor = mydb.cursor()
+        mycursor.execute("SELECT programas.nombre_programa "
+                         "FROM programas "
+                         "JOIN usuario_programa ON programas.ID_programa = usuario_programa.ID_programa "
+                         "WHERE usuario_programa.ID_usuario = %s AND usuario_programa.programa_bloqueado = 1",
+                         (self.user_id,))
+        blocked_programs = mycursor.fetchall()
+
+        for item in self.tree2.get_children():
+            self.tree2.delete(item)
+
+        for program in blocked_programs:
+            self.tree2.insert("", "end", values=(program[0],))
     def delete_selection(self):
         selected_programs = []
         for program_name, check_var in self.check_vars.items():
             if check_var.get() == "on":
                 selected_programs.append(program_name)
 
-        # Now `selected_programs` contains the names of the programs that were checked.
         print("Selected Programs:", selected_programs)
         mydb = self.db.connect()
         mycursor = mydb.cursor()
@@ -374,8 +571,32 @@ class App:
 
         for program_name in selected_programs:
             mycursor.execute(update_query, (self.user_id, program_name))
+            mydb.commit()
 
-        mydb.commit()
+        mydb = self.db.connect()
+        mycursor = mydb.cursor()
+        mycursor.execute("SELECT programas.nombre_programa "
+                         "FROM programas "
+                         "JOIN usuario_programa ON programas.ID_programa = usuario_programa.ID_programa "
+                         "WHERE usuario_programa.ID_usuario = %s AND usuario_programa.programa_bloqueado = 1",
+                         (self.user_id,))
+        blocked_programs = mycursor.fetchall()
+
+        for item in self.tree2.get_children():
+            self.tree2.delete(item)
+
+        for program in blocked_programs:
+            self.tree2.insert("", "end", values=(program[0],))
+    def search_blocked_programs(self):
+        mydb = self.db.connect()
+        mycursor = mydb.cursor()
+
+        mycursor.execute("SELECT programas.nombre_programa "
+                         "FROM programas "
+                         "JOIN usuario_programa ON programas.ID_programa = usuario_programa.ID_programa "
+                         "WHERE usuario_programa.ID_usuario = %s ",
+                         (self.user_id,))
+        programs = mycursor.fetchall()
     def configure_page3(self):
         self.page3text = customtkinter.CTkLabel(master=self.page3_frame, text="This is page 3", font=('InterVariable', 88))
         self.page3text.pack(pady=12, padx=10)
@@ -384,14 +605,13 @@ class App:
             f.pack_forget()
 
         frame.pack(fill="both", expand=True)
-
     def choose_date(self):
-        date_dialog = customtkinter.CTkInputDialog(text = "Enter the date (YYYY-MM-DD): ", title= "Date Input")
-        date_str = date_dialog.get_input()
+        fecha_dialog = customtkinter.CTkInputDialog(text = "Enter the date (YYYY-MM-DD): ", title= "Date Input")
+        fecha_str = fecha_dialog.get_input()
 
-        if date_str:
+        if fecha_str:
             try:
-                selected_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+                selected_date = datetime.strptime(fecha_str, "%Y-%m-%d").date()
                 self.display_program_usage(self.user_id, selected_date)
 
             except ValueError:
@@ -421,7 +641,6 @@ class App:
     def refresh_data(self):
         self.display_program_usage(self.user_id)
         self.root.after(self.refresh_interval, self.refresh_data)
-
     def page1(self):
         self.show_frame(self.page1_frame)
         self.display_program_usage(self.user_id)
@@ -434,11 +653,9 @@ class App:
         print("Data Refreshed")
 
 
-
-
 if __name__ == "__main__":
     root = customtkinter.CTk()
-    app = App(root)
+    app = Registro(root)
     root.mainloop()
 
 
