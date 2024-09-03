@@ -1,4 +1,4 @@
-import tkinter
+﻿import tkinter
 import customtkinter
 from tkinter import *
 from tkinter.ttk import Treeview, Style
@@ -13,6 +13,9 @@ import time
 import mysql.connector
 from mysql.connector import Error
 from datetime import datetime
+from CTkScrollableDropdown import *
+import winreg
+import os
 
 customtkinter.set_appearance_mode('System')
 customtkinter.set_appearance_mode('Red')
@@ -172,7 +175,6 @@ class Monitoreo_programa:
 
                 except Exception as e:
                     print(f"Ocurrió un error: {e}")
-
 class Database:
     def __init__(self, host, user, password, database):
         self.host = host
@@ -187,7 +189,6 @@ class Database:
             password = self.password,
             database = self.database
         )
-
     def fetch_program_usage (self, user_id, selected_date):
         try:
             mydb = self.connect()
@@ -274,8 +275,6 @@ class Login:
             print("ID Usuario:", ID_usuario)
             self.root.withdraw()
             main_app = App(customtkinter.CTkToplevel(), ID_usuario[0])
-
-
     def ir_registro(self):
         for widget in self.root.winfo_children():
             widget.destroy()
@@ -346,7 +345,6 @@ class Registro:
 
         self.incorrecto = customtkinter.CTkLabel(self.root, text="", fg_color="transparent", text_color="red")
         self.incorrecto.pack()
-
     def funcion_registro(self):
         if self.entrada_clave == self.entrada_clave1:
             nombre = self.nombre_usuario.get()
@@ -497,7 +495,6 @@ class App:
             checkbox.pack(anchor=W,fill=Y, padx=20, pady=5,)
 
         confirm_button = customtkinter.CTkButton(master=self.page2_frame, text="Confirm Program Selection", command=self.confirm_selection, height=50, width=150)
-        #confirm_button.pack(padx =20, pady=20, ipadx = 20, ipady = 20)
         confirm_button.place(x=100, y=630)
 
         delete_button = customtkinter.CTkButton(master=self.page2_frame, text="Delete Program Blocker", command=self.delete_selection, height=50, width=150)
@@ -597,9 +594,121 @@ class App:
                          "WHERE usuario_programa.ID_usuario = %s ",
                          (self.user_id,))
         programs = mycursor.fetchall()
+
     def configure_page3(self):
-        self.page3text = customtkinter.CTkLabel(master=self.page3_frame, text="This is page 3", font=('InterVariable', 88))
-        self.page3text.pack(pady=12, padx=10)
+        self.page3_label = customtkinter.CTkLabel(self.page3_frame, text="Page 3 Content",
+                                                  font=('Montserrat Black', 48))
+        self.page3_label.grid(row=0, column=1, padx=15, pady=20)
+
+        horas = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
+        minutos = [str(i) for i in range(1, 60)]
+
+        hora_label = customtkinter.CTkLabel(self.page3_frame, text="Insert Initial Time")
+        hora_label.grid(row=1, column=0, padx=15, pady=15)
+
+        desde_seleccion_hora = customtkinter.CTkOptionMenu(self.page3_frame, width=240)
+        desde_seleccion_hora.grid(row=2, column=0, padx=15, pady=10)
+        desde_seleccion_hora.set("Select Initial Blocking Hour")
+        CTkScrollableDropdown(desde_seleccion_hora, values=horas)
+
+        desde_seleccion_minuto = customtkinter.CTkOptionMenu(self.page3_frame, width=240)
+        desde_seleccion_minuto.grid(row=2, column=1, padx=10, pady=15)
+        desde_seleccion_minuto.set("Select Initial Blocking Minute")
+        CTkScrollableDropdown(desde_seleccion_minuto, values=minutos)
+
+        pm_am = customtkinter.CTkSegmentedButton(self.page3_frame, values=["AM", "PM"])
+        pm_am.grid(row=2, column=2, padx=15, pady=15)
+
+        hora_label = customtkinter.CTkLabel(self.page3_frame, text="Insert Final Blocking Time")
+        hora_label.grid(row=3, column=0, padx=15, pady=15)
+
+        hasta_seleccion_hora = customtkinter.CTkOptionMenu(self.page3_frame, width=240)
+        hasta_seleccion_hora.grid(row=4, column=0, padx=15, pady=15)
+        hasta_seleccion_hora.set("Select Final Blocking Hour")
+        CTkScrollableDropdown(hasta_seleccion_hora, values=horas)
+
+        hasta_seleccion_minuto = customtkinter.CTkOptionMenu(self.page3_frame, width=240)
+        hasta_seleccion_minuto.grid(row=4, column=1, padx=10, pady=15)
+        hasta_seleccion_minuto.set("Select Final Blocking Minute")
+        CTkScrollableDropdown(hasta_seleccion_minuto, values=minutos)
+
+        pm_am_final = customtkinter.CTkSegmentedButton(self.page3_frame, values=["AM", "PM"])
+        pm_am_final.grid(row=4, column=2, padx=15, pady=15)
+
+        def convertir_24_hora(hour, am_pm):
+            hour = int(hour)
+            if am_pm == "PM" and hour != 12:
+                hour += 12
+            elif am_pm == "AM" and hour == 12:
+                hour = 0
+            return f"{hour:02d}"
+
+        def confirm_selection():
+            hora_inicial = desde_seleccion_hora.get()
+            minuto_inicial = desde_seleccion_minuto.get()
+            hora_final = hasta_seleccion_hora.get()
+            minuto_final = hasta_seleccion_minuto.get()
+
+            am_pm_inicial = pm_am.get()
+            am_pm_final = pm_am_final.get()
+
+            hora_inicial_24 = convertir_24_hora(hora_inicial, am_pm_inicial)
+            hora_final_24 = convertir_24_hora(hora_final, am_pm_final)
+
+            tiempo_inicial = f"{hora_inicial_24}:{int(minuto_inicial):02d}:00"
+            tiempo_final = f"{hora_final_24}:{int(minuto_final):02d}:00"
+
+            print(f"Initial Time: {tiempo_inicial}, Final Time: {tiempo_final}")
+
+        confirm_button = customtkinter.CTkButton(self.page3_frame, text="Confirm", command=confirm_selection)
+        confirm_button.grid(row=5, column=0, pady=10)
+
+        def get_installed_programs():
+            programs = set()
+
+            paths = [
+                (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"),
+                (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"),
+                (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
+            ]
+
+            for hkey, path in paths:
+                try:
+                    key = winreg.OpenKey(hkey, path)
+                except WindowsError:
+                    continue
+
+                for i in range(winreg.QueryInfoKey(key)[0]):
+                    try:
+                        subkey_name = winreg.EnumKey(key, i)
+                        subkey = winreg.OpenKey(key, subkey_name)
+                        try:
+                            display_name = winreg.QueryValueEx(subkey, "DisplayName")[0]
+                            programs.add(display_name)
+                        except (WindowsError, FileNotFoundError):
+                            pass
+                    except WindowsError:
+                        continue
+
+            return sorted(list(programs))
+
+        def find_executable_name(install_location):
+            for root, dirs, files in os.walk(install_location):
+                for file in files:
+                    if file.endswith(".exe"):
+                        return file
+            return None
+
+        self.programs = get_installed_programs()
+
+        self.busqueda_programa = customtkinter.CTkEntry(self.page3_frame, width=240)
+        self.busqueda_programa.grid(row=5, column=0, pady=10)
+
+        CTkScrollableDropdown(self.busqueda_programa,
+                              values=self.programs,
+                              command=lambda e: self.busqueda_programa.insert(0, e),
+                              autocomplete=True)
+
     def show_frame(self, frame):
         for f in [self.page1_frame, self.page2_frame, self.page3_frame]:
             f.pack_forget()
